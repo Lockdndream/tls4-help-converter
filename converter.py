@@ -438,6 +438,7 @@ def _copy_images(src_assets_images: Path, dest_english: Path, log) -> int:
 # ---------------------------------------------------------------------------
 
 _SHOW_HIDE_JS = """
+<script language="javascript" src="whmsg.js"></script>
 <script language="javascript">
 // --- Show/Hide TOC support injected by TLS-4 Help Converter ---
 function onReceiveNotification(oMsg) {
@@ -453,10 +454,10 @@ function onReceiveNotification(oMsg) {
         return false;
     }
     if (oMsg.msgId == WH_MSG_ISPANEVISIBLE) {
-        if (oMsg.oParam) {
-            oMsg.oParam.bVisible = (parseInt(fs.cols) > 0);
-            reply(oMsg);
-        }
+        var bVis = (parseInt(fs.cols) > 0);
+        if (oMsg.oParam) oMsg.oParam.bVisible = bVis;
+        oMsg.bVisible = bVis;
+        try { reply(oMsg); } catch(e) {}
         return false;
     }
     return true;
