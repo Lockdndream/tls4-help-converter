@@ -508,6 +508,55 @@ def _patch_show_hide_toc(out_root: Path, log) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Fix addTocInfo newlines in legacy 2019 topic files
+# ---------------------------------------------------------------------------
+
+def _fix_addtocinfo_newlines(content: str) -> str:
+    """
+    Replace actual newline characters inside addTocInfo("...") string arguments
+    with \\n JavaScript escape sequences.
+
+    Adobe RoboHelp 2019 exported addTocInfo() calls with literal line breaks for
+    multi-level TOC paths, e.g.:
+        addTocInfo("Diagnostics
+    Temp Control
+    Relay Performance");
+
+    This is a JavaScript SyntaxError — string literals cannot span multiple lines.
+    The browser refuses to parse the entire <script> block, so addButton() is never
+    called and the Show/Hide TOC buttons never appear.
+
+    This function fixes those calls so the path is a valid single-line JS string:
+        addTocInfo("Diagnostics\nTemp Control\nRelay Performance");
+    """
+    def _replacer(m):
+        arg = m.group(1)
+        if '\n' not in arg and '\r' not in arg:
+            return m.group(0)
+        # Replace each newline (CRLF, CR, or LF) with the two-char JS escape \n
+        fixed = re.sub(r'\r\n|\r|\n', r'\\n', arg)
+        return f'addTocInfo("{fixed}")'
+
+    # [^"] matches any char including \n (character classes always match newlines)
+    return re.sub(r'addTocInfo\("([^"]*)"\)', _replacer, content)
+
+
+def _fix_addtocinfo_newlines_in_dir(out_root: Path, log) -> int:
+    """Apply _fix_addtocinfo_newlines to every .htm file in out_root."""
+    fixed = 0
+    for htm_file in out_root.glob("*.htm"):
+        try:
+            content = htm_file.read_text(encoding="utf-8", errors="replace")
+            new_content = _fix_addtocinfo_newlines(content)
+            if new_content != content:
+                htm_file.write_text(new_content, encoding="utf-8")
+                fixed += 1
+        except Exception:
+            pass
+    return fixed
+
+
+# ---------------------------------------------------------------------------
 # Main conversion entry point
 # ---------------------------------------------------------------------------
 
@@ -578,6 +627,10 @@ def convert(
                 log(f"    • {e}")
             if len(errors) > 10:
                 log(f"    … and {len(errors) - 10} more")
+
+        fixed = _fix_addtocinfo_newlines_in_dir(out_root, log)
+        if fixed:
+            log(f"  Fixed addTocInfo newlines in {fixed} legacy file(s) — Show/Hide TOC will now work on those pages")
 
         log("── Step 5/6: Copying images from 2022 package")
         assets_images = new_english / "assets" / "images"
