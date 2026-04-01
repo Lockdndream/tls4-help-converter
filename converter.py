@@ -174,9 +174,6 @@ _BODY_START_SCRIPTS = (
 _BODY_END_SCRIPT = (
     '<script type="text/javascript" language="javascript1.2">//<![CDATA[\n'
     '<!--\n'
-    'if (window.writeIntopicBar)\n'
-    '\twriteIntopicBar(0);\n'
-    '\n'
     'highlightSearch();\n'
     '//-->\n'
     '//]]></script>'
@@ -440,16 +437,22 @@ def _copy_images(src_assets_images: Path, dest_english: Path, log) -> int:
 _SHOW_HIDE_JS = """
 <script language="javascript">
 // --- Show/Hide TOC support injected by TLS-4 Help Converter ---
+function _getFrameset() {
+    return document.getElementById("whPfset")
+        || document.getElementsByName("whPfset")[0]
+        || document.querySelector("frameset[cols]")
+        || null;
+}
 function onReceiveNotification(oMsg) {
     if (!oMsg) return true;
-    var fs = document.getElementById("whPfset");
+    var fs = _getFrameset();
     if (!fs) return true;
     if (oMsg.msgId == WH_MSG_SHOWPANE) {
-        fs.cols = "260,*";
+        fs.setAttribute("cols", "260,*");
         return false;
     }
     if (oMsg.msgId == WH_MSG_HIDEPANE) {
-        fs.cols = "0,*";
+        fs.setAttribute("cols", "0,*");
         return false;
     }
     if (oMsg.msgId == WH_MSG_ISPANEVISIBLE) {
